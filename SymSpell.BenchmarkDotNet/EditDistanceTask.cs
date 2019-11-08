@@ -1,8 +1,10 @@
 ﻿using BenchmarkDotNet.Attributes;
+using BenchmarkDotNet.Jobs;
 
 namespace SymSpellBenchmarkDotNet
 {
-    [CoreJob]
+    [SimpleJob(RuntimeMoniker.NetCoreApp21)]
+    [SimpleJob(RuntimeMoniker.Net461)]
     [MemoryDiagnoser, GcServer(true)]
     [RPlotExporter, RankColumn]
     public class EditDistanceTask
