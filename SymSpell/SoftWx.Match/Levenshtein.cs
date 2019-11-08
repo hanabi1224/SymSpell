@@ -22,7 +22,8 @@ namespace SoftWx.Match {
     /// Also see http://en.wikipedia.org/wiki/Levenshtein_distance for general information.
     /// The methods in this class are not threadsafe. Use the static versions in the Distance
     /// class if that is required.</remarks>
-    public class Levenshtein : IDistance, ISimilarity {
+    public class Levenshtein : IDistance, ISimilarity, ISpanFeatureSwitch
+    {
         private int[] baseChar1Costs;
 
         /// <summary>Create a new instance of Levenshtein.</summary>
@@ -39,6 +40,8 @@ namespace SoftWx.Match {
         public Levenshtein(int expectedMaxStringLength) {
             this.baseChar1Costs = new int[expectedMaxStringLength];
         }
+
+        public bool UseSpanFeature { get; set; } = false;
 
         /// <summary>Compute and return the Levenshtein edit distance between two strings.</summary>
         /// <remarks>https://github.com/softwx/SoftWx.Match

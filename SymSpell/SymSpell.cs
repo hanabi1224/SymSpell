@@ -32,7 +32,9 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Text.RegularExpressions;
-public class SymSpell
+using SoftWx.Match;
+
+public class SymSpell : ISpanFeatureSwitch
 {
     /// <summary>Controls the closeness/quantity of returned spelling suggestions.</summary>
     public enum Verbosity
@@ -119,6 +121,8 @@ public class SymSpell
             return (SuggestItem)MemberwiseClone();
         }
     }
+
+    public bool UseSpanFeature { get; set; } = true;
 
     /// <summary>Maximum edit distance for dictionary precalculation.</summary>
     public int MaxDictionaryEditDistance { get { return this.maxDictionaryEditDistance; } }
@@ -492,7 +496,8 @@ public class SymSpell
         {
             candidates.Add(input);
         }
-        var distanceComparer = new EditDistance(this.distanceAlgorithm);
+        var distanceComparer = CreateDistanceComparer();
+
         while (candidatePointer < candidates.Count)
         {
             string candidate = candidates[candidatePointer++];
@@ -763,6 +768,10 @@ public class SymSpell
         return Edits(key, 0, hashSet);
     }
 
+    private EditDistance CreateDistanceComparer() {
+        return new EditDistance(this.distanceAlgorithm, useSpanFeature: UseSpanFeature);
+    }
+
     private int GetStringHash(string s)
     {
         //return s.GetHashCode();
@@ -856,7 +865,7 @@ public class SymSpell
 
         List<SuggestItem> suggestions = new List<SuggestItem>();     //suggestions for a single term
         List<SuggestItem> suggestionParts = new List<SuggestItem>(); //1 line with separate parts
-        var distanceComparer = new EditDistance(this.distanceAlgorithm);
+        var distanceComparer = CreateDistanceComparer();
 
         //translate every term to its best suggestion, otherwise it remains unchanged
         bool lastCombi = false;

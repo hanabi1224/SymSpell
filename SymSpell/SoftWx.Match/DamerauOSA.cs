@@ -36,14 +36,13 @@ namespace SoftWx.Match {
     /// transpositions for adjacent characters.
     /// The methods in this class are not threadsafe. Use the static versions in the Distance
     /// class if that is required.</remarks>
-    public class DamerauOSA : IDistance {
-        private int[] baseChar1Costs;
-        private int[] basePrevChar1Costs;
+    public class DamerauOSA : IDistance, ISpanFeatureSwitch
+    {
+        private int _baseChar1CostsLength = 0;
+        private int _basePrevChar1CostsLength = 0;
 
         /// <summary>Create a new instance of DamerauOSA.</summary>
         public DamerauOSA() {
-            this.baseChar1Costs = new int[0];
-            this.basePrevChar1Costs = new int[0];
         }
 
         /// <summary>Create a new instance of DamerauOSA using the specified expected
@@ -53,9 +52,12 @@ namespace SoftWx.Match {
         /// <param name="expectedMaxStringLength">The expected maximum length of strings that will
         /// be passed to the edit distance functions.</param>
         public DamerauOSA(int expectedMaxStringLength) {
-            this.baseChar1Costs = new int[expectedMaxStringLength];
-            this.basePrevChar1Costs = new int[expectedMaxStringLength];
+            _baseChar1CostsLength = _basePrevChar1CostsLength = expectedMaxStringLength;
         }
+
+        public bool UseSpanFeature { get; set; } = true;
+
+        public int UseSpanFeatureMaxArraySize { get; set; } = 256;
 
         /// <summary>Compute and return the Damerau-Levenshtein optimal string
         /// alignment edit distance between two strings.</summary>
@@ -78,11 +80,22 @@ namespace SoftWx.Match {
             Helpers.PrefixSuffixPrep(string1, string2, out len1, out len2, out start);
             if (len1 == 0) return len2;
 
-            if (len2 > this.baseChar1Costs.Length) {
-                this.baseChar1Costs = new int[len2];
-                this.basePrevChar1Costs = new int[len2];
+            if (len2 > _baseChar1CostsLength) {
+                _baseChar1CostsLength = _basePrevChar1CostsLength = len2;
             }
-            return Distance(string1, string2, len1, len2, start, this.baseChar1Costs, this.basePrevChar1Costs);
+
+            if (UseSpanFeature && _baseChar1CostsLength < UseSpanFeatureMaxArraySize)
+            {
+                Span<int> baseChar1Costs = stackalloc int[_baseChar1CostsLength];
+                Span<int> basePrevChar1Costs = stackalloc int[_basePrevChar1CostsLength];
+                return Distance(string1, string2, len1, len2, start, baseChar1Costs, basePrevChar1Costs);
+            }
+            else
+            {
+                var baseChar1Costs = new int[_baseChar1CostsLength];
+                var basePrevChar1Costs = new int[_basePrevChar1CostsLength];
+                return Distance(string1, string2, len1, len2, start, baseChar1Costs, basePrevChar1Costs);
+            }
         }
 
         /// <summary>Compute and return the Damerau-Levenshtein optimal string
@@ -111,14 +124,30 @@ namespace SoftWx.Match {
             Helpers.PrefixSuffixPrep(string1, string2, out len1, out len2, out start);
             if (len1 == 0) return (len2 <= iMaxDistance) ? len2 : -1;
 
-            if (len2 > this.baseChar1Costs.Length) {
-                this.baseChar1Costs = new int[len2];
-                this.basePrevChar1Costs = new int[len2];
+            if (len2 > _baseChar1CostsLength) {
+                _baseChar1CostsLength = _basePrevChar1CostsLength = len2;
             }
-            if (iMaxDistance < len2) {
-                return Distance(string1, string2, len1, len2, start, iMaxDistance, this.baseChar1Costs, this.basePrevChar1Costs);
+
+            if (UseSpanFeature && _baseChar1CostsLength < UseSpanFeatureMaxArraySize)
+            {
+                Span<int> baseChar1Costs = stackalloc int[_baseChar1CostsLength];
+                Span<int> basePrevChar1Costs = stackalloc int[_basePrevChar1CostsLength];
+                if (iMaxDistance < len2)
+                {
+                    return Distance(string1, string2, len1, len2, start, iMaxDistance, baseChar1Costs, basePrevChar1Costs);
+                }
+                return Distance(string1, string2, len1, len2, start, baseChar1Costs, basePrevChar1Costs);
             }
-            return Distance(string1, string2, len1, len2, start, this.baseChar1Costs, this.basePrevChar1Costs);
+            else
+            {
+                var baseChar1Costs = new int[_baseChar1CostsLength];
+                var basePrevChar1Costs = new int[_basePrevChar1CostsLength];
+                if (iMaxDistance < len2)
+                {
+                    return Distance(string1, string2, len1, len2, start, iMaxDistance, baseChar1Costs, basePrevChar1Costs);
+                }
+                return Distance(string1, string2, len1, len2, start, baseChar1Costs, basePrevChar1Costs);
+            }
         }
 
         /// <summary>Return Damerau-Levenshtein optimal string alignment similarity
@@ -140,12 +169,23 @@ namespace SoftWx.Match {
             Helpers.PrefixSuffixPrep(string1, string2, out len1, out len2, out start);
             if (len1 == 0) return 1.0;
 
-            if (len2 > this.baseChar1Costs.Length) {
-                this.baseChar1Costs = new int[len2];
-                this.basePrevChar1Costs = new int[len2];
+            if (len2 > _baseChar1CostsLength) {
+                _baseChar1CostsLength = _basePrevChar1CostsLength = len2;
             }
-            return Distance(string1, string2, len1, len2, start, this.baseChar1Costs, this.basePrevChar1Costs)
-                .ToSimilarity(string2.Length);
+
+            if (UseSpanFeature && _baseChar1CostsLength < UseSpanFeatureMaxArraySize)
+            {
+                Span<int> baseChar1Costs = stackalloc int[_baseChar1CostsLength];
+                Span<int> basePrevChar1Costs = stackalloc int[_basePrevChar1CostsLength];
+                return Distance(string1, string2, len1, len2, start, baseChar1Costs, basePrevChar1Costs).ToSimilarity(string2.Length);
+            }
+            else
+            {
+                var baseChar1Costs = new int[_baseChar1CostsLength];
+                var basePrevChar1Costs = new int[_basePrevChar1CostsLength];
+                return Distance(string1, string2, len1, len2, start, baseChar1Costs, basePrevChar1Costs)
+                    .ToSimilarity(string2.Length);
+            }
         }
 
         /// <summary>Return Damerau-Levenshtein optimal string alignment similarity
@@ -174,22 +214,41 @@ namespace SoftWx.Match {
             Helpers.PrefixSuffixPrep(string1, string2, out len1, out len2, out start);
             if (len1 == 0) return 1.0;
 
-            if (len2 > this.baseChar1Costs.Length) {
-                this.baseChar1Costs = new int[len2];
-                this.basePrevChar1Costs = new int[len2];
+            if (len2 > _baseChar1CostsLength)
+            {
+                _baseChar1CostsLength = _basePrevChar1CostsLength = len2;
             }
-            if (iMaxDistance < len2) {
-                return Distance(string1, string2, len1, len2, start, iMaxDistance, this.baseChar1Costs, this.basePrevChar1Costs)
+
+            if (UseSpanFeature && _baseChar1CostsLength < UseSpanFeatureMaxArraySize)
+            {
+                Span<int> baseChar1Costs = stackalloc int[_baseChar1CostsLength];
+                Span<int> basePrevChar1Costs = stackalloc int[_basePrevChar1CostsLength];
+                if (iMaxDistance < len2)
+                {
+                    return Distance(string1, string2, len1, len2, start, iMaxDistance, baseChar1Costs, basePrevChar1Costs)
+                        .ToSimilarity(string2.Length);
+                }
+                return Distance(string1, string2, len1, len2, start, baseChar1Costs, basePrevChar1Costs)
                     .ToSimilarity(string2.Length);
             }
-            return Distance(string1, string2, len1, len2, start, this.baseChar1Costs, this.basePrevChar1Costs)
-                .ToSimilarity(string2.Length);
+            else
+            {
+                var baseChar1Costs = new int[_baseChar1CostsLength];
+                var basePrevChar1Costs = new int[_basePrevChar1CostsLength];
+                if (iMaxDistance < len2)
+                {
+                    return Distance(string1, string2, len1, len2, start, iMaxDistance, baseChar1Costs, basePrevChar1Costs)
+                        .ToSimilarity(string2.Length);
+                }
+                return Distance(string1, string2, len1, len2, start, baseChar1Costs, basePrevChar1Costs)
+                    .ToSimilarity(string2.Length);
+            }
         }
 
         /// <summary>Internal implementation of the core Damerau-Levenshtein, optimal string alignment algorithm.</summary>
         /// <remarks>https://github.com/softwx/SoftWx.Match</remarks>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        internal static int Distance(string string1, string string2, int len1, int len2, int start, int[] char1Costs, int[] prevChar1Costs) {
+        internal static int Distance(string string1, string string2, int len1, int len2, int start, Span<int> char1Costs, Span<int> prevChar1Costs) {
             int j;
             for (j = 0; j < len2;) char1Costs[j] = ++j;
             char char1 = ' ';
@@ -229,7 +288,7 @@ namespace SoftWx.Match {
         /// <summary>Internal implementation of the core Damerau-Levenshtein, optimal string alignment algorithm
         /// that accepts a maxDistance.</summary>
         /// <remarks>https://github.com/softwx/SoftWx.Match</remarks>
-        internal static int Distance(string string1, string string2, int len1, int len2, int start, int maxDistance, int[] char1Costs, int[] prevChar1Costs) {
+        internal static int Distance(string string1, string string2, int len1, int len2, int start, int maxDistance, Span<int> char1Costs, Span<int> prevChar1Costs) {
 #if DEBUG
             if (len2 < maxDistance) throw new ArgumentException();
             if (len2-len1 > maxDistance) throw new ArgumentException();
